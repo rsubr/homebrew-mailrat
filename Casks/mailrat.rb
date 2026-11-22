@@ -13,9 +13,11 @@ cask "mailrat" do
   binary "#{appdir}/mailrat.app/Contents/MacOS/mailrat"
 
   # The app is not yet signed or notarized; drop the quarantine flag so
-  # Gatekeeper does not block the first launch.
-  postflight do
-    system_command "/usr/bin/xattr",
-                   args: ["-dr", "com.apple.quarantine", "#{appdir}/mailrat.app"]
+  # Gatekeeper does not block the first launch. (Homebrew 7+ install steps.)
+  postflight_steps do
+    on_macos do
+      run "/usr/bin/xattr",
+          args: ["-dr", "com.apple.quarantine", "{{appdir}}/mailrat.app"]
+    end
   end
 end

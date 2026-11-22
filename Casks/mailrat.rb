@@ -12,6 +12,30 @@ cask "mailrat" do
   app "mailrat.app"
   binary "#{appdir}/mailrat.app/Contents/MacOS/mailrat"
 
+  # Graceful quit before the app bundle is replaced (sends Apple quit event,
+  # waits for exit; Homebrew only falls back to TERM/KILL if this times out).
+  uninstall quit: "com.mailrat.app"
+
+  # Runs before the quit above. Records whether the GUI app was running so
+  # postflight can relaunch it. -x with an anchored pattern matches only the
+  # bare GUI process, not `mailrat tui` or other CLI invocations.
+  uninstall_preflight do
+    flag = "/tmp/.mailrat-was-running"
+    File.delete(flag) if File.exist?(flag)
+    running = system_command("/usr/bin/pgrep",
+                             args:         ["-xf", ".*mailrat\\.app/Contents/MacOS/mailrat$"],
+                             print_stderr: false)
+    system_command "/usr/bin/touch", args: [flag] if running.exit_status.zero?
+  end
+
+  postflight do
+    flag = "/tmp/.mailrat-was-running"
+    if File.exist?(flag)
+      File.delete(flag)
+      system_command "/usr/bin/open", args: ["-a", "#{appdir}/mailrat.app"]
+    end
+  end
+
   # The app is not yet signed or notarized; drop the quarantine flag so
   # Gatekeeper does not block the first launch. (Homebrew 7+ install steps.)
   postflight_steps do

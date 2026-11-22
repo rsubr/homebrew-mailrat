@@ -23,7 +23,10 @@ cask "mailrat" do
     end
     if_path_exists "/tmp/.mailrat-was-running" do
       remove "/tmp/.mailrat-was-running"
-      run "/usr/bin/open", args: ["-a", "{{appdir}}/mailrat.app"]
+      run "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister",
+          args:         ["-f", "{{appdir}}/mailrat.app"],
+          must_succeed: false
+      run "/usr/bin/open", args: ["-a", "{{appdir}}/mailrat.app"], must_succeed: false
     end
   end
 
@@ -44,5 +47,6 @@ cask "mailrat" do
 
   # Graceful quit before the app bundle is replaced (sends Apple quit event,
   # waits for exit; Homebrew only falls back to TERM/KILL if this times out).
-  uninstall quit: "com.mailrat.app"
+  uninstall quit:   "com.mailrat.app",
+            signal: [["TERM", "com.mailrat.app"]]
 end

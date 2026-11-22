@@ -8,40 +8,41 @@ cask "mailrat" do
   homepage "https://github.com/rsubr/mailrat"
 
   depends_on arch: :arm64
+  depends_on :macos
 
   app "mailrat.app"
   binary "#{appdir}/mailrat.app/Contents/MacOS/mailrat"
 
-  # Graceful quit before the app bundle is replaced (sends Apple quit event,
-  # waits for exit; Homebrew only falls back to TERM/KILL if this times out).
-  uninstall quit: "com.mailrat.app"
-
-  # Runs before the quit above. Records whether the GUI app was running so
-  # postflight can relaunch it. -x with an anchored pattern matches only the
-  # bare GUI process, not `mailrat tui` or other CLI invocations.
-  uninstall_preflight do
-    flag = "/tmp/.mailrat-was-running"
-    File.delete(flag) if File.exist?(flag)
-    running = system_command("/usr/bin/pgrep",
-                             args:         ["-xf", ".*mailrat\\.app/Contents/MacOS/mailrat$"],
-                             print_stderr: false)
-    system_command "/usr/bin/touch", args: [flag] if running.exit_status.zero?
-  end
-
-  postflight do
-    flag = "/tmp/.mailrat-was-running"
-    if File.exist?(flag)
-      File.delete(flag)
-      system_command "/usr/bin/open", args: ["-a", "#{appdir}/mailrat.app"]
-    end
-  end
-
   # The app is not yet signed or notarized; drop the quarantine flag so
-  # Gatekeeper does not block the first launch. (Homebrew 7+ install steps.)
+  # Gatekeeper does not block the first launch. Also relaunches the app after
+  # an upgrade if it was running beforehand (flag set by the preflight below).
   postflight_steps do
     on_macos do
       run "/usr/bin/xattr",
           args: ["-dr", "com.apple.quarantine", "{{appdir}}/mailrat.app"]
     end
+    if_path_exists "/tmp/.mailrat-was-running" do
+      remove "/tmp/.mailrat-was-running"
+      run "/usr/bin/open", args: ["-a", "{{appdir}}/mailrat.app"]
+    end
   end
+
+  # Runs before the quit below. Records whether the GUI app was running so
+  # postflight can relaunch it. -x with an anchored pattern matches only the
+  # bare GUI process, not `mailrat tui` or other CLI invocations.
+  uninstall_preflight_steps do
+    if_path_exists "/tmp/.mailrat-was-running" do
+      remove "/tmp/.mailrat-was-running"
+    end
+    run "/bin/sh",
+        args:           ["-c", "/usr/bin/pgrep -xf '.*mailrat\\.app/Contents/MacOS/mailrat$' " \
+                               "&& /usr/bin/touch /tmp/.mailrat-was-running"],
+        must_succeed:   false,
+        print_stderr:   false,
+        writable_paths: ["/tmp/.mailrat-was-running"]
+  end
+
+  # Graceful quit before the app bundle is replaced (sends Apple quit event,
+  # waits for exit; Homebrew only falls back to TERM/KILL if this times out).
+  uninstall quit: "com.mailrat.app"
 end

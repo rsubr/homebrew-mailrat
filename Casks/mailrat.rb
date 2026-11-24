@@ -1,6 +1,6 @@
 cask "mailrat" do
-  version "0.3.0"
-  sha256 "07348debae61bcf3a625cd56a5a864e50ba956d3eb99082be9fc4f38bc03638f"
+  version "0.3.1"
+  sha256 "97cb81a214678fab976bebda3a6c2b62c9bd9891108ce34e342c2bd1d1512d13"
 
   url "https://github.com/rsubr/mailrat/releases/download/v#{version}/mailrat-macos-arm64.zip"
   name "mailrat"
